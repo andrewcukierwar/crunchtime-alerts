@@ -5,7 +5,7 @@ import nba_alerts
 import mlb_alerts
 
 def main():
-    bot_token = 'xoxb-828847192688-830705141863-0a85u9xryrNgwBLCxfEHnPVO'
+    bot_token = 'xoxb-828847192688-830705141863-i4aBLMnet30NtN2u0trVcEfF'
     client = WebClient(token=bot_token)
 
     # initialize nba
