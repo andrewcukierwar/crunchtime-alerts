@@ -3,10 +3,10 @@ from slack import WebClient
 import requests
 import nba_alerts
 import mlb_alerts
+import config
 
 def main():
-    bot_token = 'xoxb-828847192688-830705141863-i4aBLMnet30NtN2u0trVcEfF'
-    client = WebClient(token=bot_token)
+    client = WebClient(token=config.bot_token)
 
     # initialize nba
 
