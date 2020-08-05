@@ -1,6 +1,14 @@
 from bs4 import BeautifulSoup
 import requests
 
+# Parses and returns the away team from the tbody
+def get_away_team(tbody):
+    return tbody.find_all('tr')[1].find_all('td')[2].text.split()[-1]
+
+# Parses and returns the home team from the tbody
+def get_home_team(tbody):
+    return tbody.find_all('tr')[2].find_all('td')[2].text.split()[-1]
+
 def get_team_ratings():
     url = 'https://projects.fivethirtyeight.com/2020-nba-predictions/'
     response = requests.get(url)
@@ -14,6 +22,12 @@ def get_team_ratings():
         ratings[team] = rating
     return ratings
 
+def has_favorite_teams(teams):
+    # TODO: Replace with dynamic preferences per user.
+    FAV_TEAMS = ['Knicks']
+    # Finds intersection between favorite teams and teams in the matchup.
+    return set(teams) & set(FAV_TEAMS)
+
 def get_watchability(ratings):
     url = 'https://projects.fivethirtyeight.com/2020-nba-predictions/games/'
     response = requests.get(url)
@@ -25,12 +39,12 @@ def get_watchability(ratings):
         s1, s2 = tbody.find_all(class_='td number spread')
         spread = max((s1.text, s2.text), key=lambda s: len(s))
         spread = float(spread[2:]) if spread != ' PK' else 0.0
-        away = tbody.find_all('tr')[1].find_all('td')[2].text.split()[-1]
-        home = tbody.find_all('tr')[2].find_all('td')[2].text.split()[-1]
+        away = get_away_team(tbody)
+        home = get_home_team(tbody)
         away_rating = ratings[away]
         home_rating = ratings[home]
         watchability = 'Medium'
-        if away == 'Knicks' or home == 'Knicks': ## knicks factor
+        if has_favorite_teams([home, away]):
             watchability = 'High'
         elif home_rating + away_rating < 3000 or spread > 5:
             watchability = 'Low'
