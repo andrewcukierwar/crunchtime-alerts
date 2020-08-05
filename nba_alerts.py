@@ -10,6 +10,8 @@ def set_games():
     games = {}
     for a_tag in content:
         url = a_tag['href']
+        if 'espn' in url:
+            continue
         time = a_tag.find('p').text.split(' - ')[1]
         teams = a_tag.find('h4').text.strip().split(' vs ')
         if len(teams) < 2:
@@ -61,7 +63,7 @@ def send_alerts(client, games, alerted):
     new_alerts = check_for_new_alerts(games, alerted)
     for teams in new_alerts:
         game = games[teams]
-        text = '<%s | %s %s, %s %s. %s remaining>' % (game['url'], teams[0], game['score'][0], 
+        text = '<%s|%s %s, %s %s. %s remaining>' % (game['url'], teams[0], game['score'][0], 
         	teams[1], game['score'][1], game['displayClock'])
         response = client.chat_postMessage(channel='#crunchtime-alerts', text=text)
         print('Alert Sent')
