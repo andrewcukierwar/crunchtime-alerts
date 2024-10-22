@@ -1,25 +1,9 @@
 from bs4 import BeautifulSoup
 import requests
-
-# Parses and returns the away team from the tbody
-def get_away_team(tbody):
-    return tbody.find_all('tr')[1].find_all('td')[2].text.split()[-1]
-
-# Parses and returns the home team from the tbody
-def get_home_team(tbody):
-    return tbody.find_all('tr')[2].find_all('td')[2].text.split()[-1]
+import nba_elo
 
 def get_team_ratings():
-    url = 'https://projects.fivethirtyeight.com/2020-nba-predictions/'
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    content = soup.find(id='standings-table').find('tbody').find_all('tr')
-
-    ratings = {}
-    for tr in content:
-        rating = int(tr.find('td', class_='num elo carmelo-current').text)
-        team = tr.find('td', class_='team').find('a').text.split()[-1]
-        ratings[team] = rating
+    ratings = nba_elo.get_output()
     return ratings
 
 def has_favorite_teams(teams):
@@ -29,29 +13,26 @@ def has_favorite_teams(teams):
     return set(teams) & set(FAV_TEAMS)
 
 def get_watchability(ratings):
-    url = 'https://projects.fivethirtyeight.com/2020-nba-predictions/games/'
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    content = soup.find(id='upcoming-days').find_all('div')[0].find_all('tbody')
-
     watchability_dict = {}
-    for tbody in content:
-        s1, s2 = tbody.find_all(class_='td number spread')
-        spread = max((s1.text, s2.text), key=lambda s: len(s))
-        spread = float(spread[2:]) if spread != ' PK' else 0.0
-        away = get_away_team(tbody)
-        home = get_home_team(tbody)
-        away_rating = ratings[away]
-        home_rating = ratings[home]
+    espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
+    response = requests.get(espn_api)
+    data = response.json()
+    for event in data['events']:
+        home, away = event['competitions'][0]['competitors']
+        away_team = away['team']['displayName'].split()[-1]
+        home_team = home['team']['displayName'].split()[-1]
+        away_rating = ratings[away_team]
+        home_rating = ratings[home_team]
+        total_rating = away_rating + home_rating
+        net_rating = abs(home_rating - away_rating)
         watchability = 'Medium'
-        if has_favorite_teams([home, away]):
+        if has_favorite_teams([home_team, away_team]):
             watchability = 'High'
-        elif home_rating + away_rating < 3000 or spread > 5:
+        elif total_rating < 3000 or net_rating > 200:
             watchability = 'Low'
-        elif home_rating + away_rating > 3200:
+        elif total_rating > 3200:
             watchability = 'High'
-        watchability_dict[(away, home)] = {
-            'Spread' : spread,
+        watchability_dict[(away_team, home_team)] = {
             'Away Rating' : away_rating,
             'Home Rating' : home_rating,
             'Watchability' : watchability

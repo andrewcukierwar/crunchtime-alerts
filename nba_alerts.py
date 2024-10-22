@@ -4,22 +4,52 @@ from slack import WebClient
 import nba_watchability
 import requests
 
+# def set_games():
+#     response = requests.get('http://nbastreams.xyz')
+#     soup = BeautifulSoup(response.text, 'html.parser')
+#     content = soup.find_all('a', class_ = 'btn btn-default btn-lg btn-block')
+#     games = {}
+#     for a_tag in content:
+#         url = a_tag['href']
+#         if 'espn' in url:
+#             continue
+#         time = a_tag.find('p').text.split(' - ')[1]
+#         teams = a_tag.find('h4').text.strip().split(' vs ')
+#         if len(teams) < 2:
+#             teams = a_tag.find('h4').text.strip().split(' at ')
+#         away = teams[0].split()[-1]
+#         home = teams[1].split()[-1]
+#         games[(away, home)] = {'url':url, 'time':time}
+#     return 
+
+def set_game_urls(games):
+    # streaming_url = 'https://givemeredditstreams.xyz'
+    # response = requests.get(f'{streaming_url}/nba')
+    # soup = BeautifulSoup(response.text, 'html.parser')
+    # content = soup.find_all('a', class_ = 'matches') #.find_all('li')
+    # urls = [f'{streaming_url}{a_tag["href"]}' for a_tag in content]
+    # for away, home in games:
+    #     for url in urls:
+    #         if away.lower() in url and home.lower() in url:
+    #             games[away, home]['url'] = url
+
+    for away, home in games:
+        games[away, home]['url'] = f'https://givemereddit.eu/nba/{home.lower()}.html'
+
 def set_games():
-    response = requests.get('http://nbastreams.xyz')
-    soup = BeautifulSoup(response.text, 'html.parser')
-    content = soup.find_all('a', class_ = 'btn btn-default btn-lg btn-block')
+    espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
+    response = requests.get(espn_api)
+    data = response.json()
     games = {}
-    for a_tag in content:
-        url = a_tag['href']
-        if 'espn' in url:
-            continue
-        time = a_tag.find('p').text.split(' - ')[1]
-        teams = a_tag.find('h4').text.strip().split(' vs ')
-        if len(teams) < 2:
-            teams = a_tag.find('h4').text.strip().split(' at ')
-        away = teams[0].split()[-1]
-        home = teams[1].split()[-1]
-        games[(away, home)] = {'url':url, 'time':time}
+    for event in data['events']:
+        home, away = event['competitions'][0]['competitors']
+        away_team = away['team']['displayName'].split()[-1]
+        home_team = home['team']['displayName'].split()[-1]
+        games[(away_team, home_team)] = {
+            'url': '',
+            'time': event['status']['type']['shortDetail'].split('-')[1][1:],
+        }
+    set_game_urls(games)
     return games
 
 def update_games(games):
@@ -73,14 +103,15 @@ def send_alerts(client, games, alerted):
             away_score, home_score = game['score']
             text = '<%s|%s %s, %s %s. %s remaining>' % (game['url'], away_team, away_score, 
             	home_team, home_score, game['displayClock'])
-            response = client.chat_postMessage(channel='#bot-testing', text=text) ## CHANGE BACK
+            response = client.chat_postMessage(channel='#crunchtime-alerts', text=text)
             print('Alert Sent')
             alerted[timeframe].add(teams)
     return games, alerted
 
 def get_time_windows(games):
     today = dt.now().date()
-    first_game_time = list(games.values())[0]['time'].split()[0]
+    # first_game_time = list(games.values())[0]['time'].split()[0]
+    first_game_time = ''.join(list(games.values())[0]['time'].split()[:2])
     lower_window = dt.combine(today, dt.strptime(first_game_time, '%I:%M%p').time())
     return lower_window
 
