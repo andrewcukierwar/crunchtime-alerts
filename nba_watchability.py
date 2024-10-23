@@ -3,6 +3,7 @@ import nba_elo
 
 def get_team_ratings():
     ratings = nba_elo.get_output()
+    ratings['Blazers'] = ratings['Trail Blazers']
     return ratings
 
 def has_favorite_teams(teams):
