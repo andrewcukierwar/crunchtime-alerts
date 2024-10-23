@@ -1,26 +1,7 @@
 from datetime import timedelta, datetime as dt
-from bs4 import BeautifulSoup
-from slack import WebClient
+# from bs4 import BeautifulSoup
 import nba_watchability
 import requests
-
-# def set_games():
-#     response = requests.get('http://nbastreams.xyz')
-#     soup = BeautifulSoup(response.text, 'html.parser')
-#     content = soup.find_all('a', class_ = 'btn btn-default btn-lg btn-block')
-#     games = {}
-#     for a_tag in content:
-#         url = a_tag['href']
-#         if 'espn' in url:
-#             continue
-#         time = a_tag.find('p').text.split(' - ')[1]
-#         teams = a_tag.find('h4').text.strip().split(' vs ')
-#         if len(teams) < 2:
-#             teams = a_tag.find('h4').text.strip().split(' at ')
-#         away = teams[0].split()[-1]
-#         home = teams[1].split()[-1]
-#         games[(away, home)] = {'url':url, 'time':time}
-#     return 
 
 def set_game_urls(games):
     # streaming_url = 'https://givemeredditstreams.xyz'

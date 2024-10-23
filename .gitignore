@@ -1,5 +1,8 @@
 
 config.py
+test.html
+mlb_alerts.py
+mlb_watchability.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
