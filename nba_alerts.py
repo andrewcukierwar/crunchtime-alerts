@@ -15,7 +15,8 @@ def set_game_urls(games):
     #             games[away, home]['url'] = url
 
     for away, home in games:
-        games[away, home]['url'] = f'https://givemereddit.eu/nba/{home.lower()}.html'
+        # games[away, home]['url'] = f'https://givemereddit.eu/nba/{home.lower()}.html'
+        games[away, home]['url'] = f'https://methstreams.com/nba-streams/{home.lower()}/'
 
 def set_games():
     espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
