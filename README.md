@@ -67,11 +67,11 @@ crunchtime-alerts/
 Contributions are welcome! Please fork the repository and create a pull request with your changes.
 
 ## Acknowledgements
-* ESPN API for providing access to `[live NBA game scores] (http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard)`.
-* `[NBA API] (https://github.com/swar/nba_api)` for providing access to NBA game data.
-* `[Slack API] (https://api.slack.com/)` for enabling real-time notifications.
-* FiveThirtyEight for detailing their `[original NBA Elo calcluation methodology] (https://fivethirtyeight.com/features/how-we-calculate-nba-elo-ratings/)`. 
-* Special thanks to `[Allen Hao] (https://github.com/allenhao1)` for his contribution to the favorite teams section.
+* ESPN API for providing access to [live NBA game scores](http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard).
+* [NBA API](https://github.com/swar/nba_api) for providing access to NBA game data.
+* [Slack API](https://api.slack.com/) for enabling real-time notifications.
+* FiveThirtyEight for detailing their [original NBA Elo calculation methodology](https://fivethirtyeight.com/features/how-we-calculate-nba-elo-ratings/).
+* Special thanks to [Allen Hao](https://github.com/allenhao1) for his contribution to the favorite teams section.
 
 ## Contact
 For any questions or suggestions, please open an issue or contact the project maintainer at andrew.cukierwar@gmail.com.
