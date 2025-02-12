@@ -13,10 +13,11 @@ def has_favorite_teams(teams):
     return set(teams) & set(FAV_TEAMS)
 
 def get_watchability(ratings):
-    watchability_dict = {}
     espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
     response = requests.get(espn_api)
     data = response.json()
+
+    watchability_dict = {}
     for event in data['events']:
         home, away = event['competitions'][0]['competitors']
         away_team = away['team']['displayName'].split()[-1]
@@ -37,5 +38,4 @@ def get_watchability(ratings):
             'Home Rating' : home_rating,
             'Watchability' : watchability
         }
-
     return watchability_dict

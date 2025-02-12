@@ -3,6 +3,8 @@ config.py
 test.html
 mlb_alerts.py
 mlb_watchability.py
+nba_alerts_old.py
+main_old.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

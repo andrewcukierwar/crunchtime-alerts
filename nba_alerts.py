@@ -1,22 +1,10 @@
 from datetime import timedelta, datetime as dt
-# from bs4 import BeautifulSoup
 import nba_watchability
 import requests
 
 def set_game_urls(games):
-    # streaming_url = 'https://givemeredditstreams.xyz'
-    # response = requests.get(f'{streaming_url}/nba')
-    # soup = BeautifulSoup(response.text, 'html.parser')
-    # content = soup.find_all('a', class_ = 'matches') #.find_all('li')
-    # urls = [f'{streaming_url}{a_tag["href"]}' for a_tag in content]
-    # for away, home in games:
-    #     for url in urls:
-    #         if away.lower() in url and home.lower() in url:
-    #             games[away, home]['url'] = url
-
     for away, home in games:
-        # games[away, home]['url'] = f'https://givemereddit.eu/nba/{home.lower()}.html'
-        games[away, home]['url'] = f'https://methstreams.com/nba-streams/{home.lower()}/'
+        games[away, home]['url'] = f'https://givemereddit.eu/nba/{home.lower()}.html'
 
 def set_games():
     espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
@@ -92,7 +80,6 @@ def send_alerts(client, games, alerted):
 
 def get_time_windows(games):
     today = dt.now().date()
-    # first_game_time = list(games.values())[0]['time'].split()[0]
     first_game_time = ''.join(list(games.values())[0]['time'].split()[:2])
     lower_window = dt.combine(today, dt.strptime(first_game_time, '%I:%M%p').time())
     return lower_window
