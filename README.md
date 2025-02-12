@@ -29,9 +29,9 @@ Crunchtime Alerts is a Python-based project designed to provide real-time notifi
     pip install -r requirements.txt
     ```
 
-4. Set up your Slack bot token in `:
-[config.py    ](http://_vscodecontentref_/1)``python
-    # [config.py](http://_vscodecontentref_/2)
+4. Set up your Slack bot token in `config.py`:
+    ```python
+    # config.py
     bot_token = 'your-slack-bot-token'
     ```
 
