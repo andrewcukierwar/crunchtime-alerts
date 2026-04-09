@@ -42,7 +42,7 @@ def get_team_elos(season):
     return elos
 
 def get_output():
-    season = '2024-25'
+    season = '2025-26'
     elos = get_team_elos(season)
     df_teams = pd.DataFrame(teams.get_teams())
     df_teams['rating'] = df_teams['abbreviation'].map(elos).round()

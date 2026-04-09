@@ -4,7 +4,10 @@ import requests
 
 def set_game_urls(games):
     for away, home in games:
-        games[away, home]['url'] = f'https://givemereddit.eu/nba/{home.lower()}.html'
+        # games[away, home]['url'] = f'https://givemereddit.eu/nba/{home.lower()}.html'
+        away_city = games[away, home]['away_city']
+        home_city = games[away, home]['home_city']
+        games[away, home]['url'] = f'https://crackstreams.ms/stream/{away_city}-{away}-vs-{home_city}-{home}'
 
 def set_games():
     espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
@@ -13,11 +16,15 @@ def set_games():
     games = {}
     for event in data['events']:
         home, away = event['competitions'][0]['competitors']
+        away_city = away['team']['displayName'].split()[0]
+        home_city = home['team']['displayName'].split()[0]
         away_team = away['team']['displayName'].split()[-1]
         home_team = home['team']['displayName'].split()[-1]
         games[(away_team, home_team)] = {
             'url': '',
             'time': event['status']['type']['shortDetail'].split('-')[1][1:],
+            'away_city': away_city,
+            'home_city': home_city
         }
     set_game_urls(games)
     return games
