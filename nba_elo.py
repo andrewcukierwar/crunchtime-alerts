@@ -41,6 +41,7 @@ def get_team_elos():
         "x-nba-stats-token": "true",
         "Accept-Language": "en-US,en;q=0.9"
     }
+    
     df_games = get_games(headers)
     df_teams = pd.DataFrame(teams.get_teams())
     elos = {team: 1500 for team in df_teams['abbreviation']}

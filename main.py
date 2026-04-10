@@ -1,7 +1,6 @@
 from datetime import datetime as dt
 from time import time, sleep
 from slack_sdk import WebClient
-import requests
 import nba_alerts
 import config
 
@@ -12,7 +11,7 @@ def main():
     nba_alerted = {'5 Min': set(), '1 Min': set(), 'OT': set()}
 
     nba_daily_report = nba_alerts.get_daily_report(nba_games)
-    response = client.chat_postMessage(channel='#bot-testing', text=nba_daily_report) # #crunchtime-alerts
+    response = client.chat_postMessage(channel='#crunchtime-alerts', text=nba_daily_report) # #bot-testing
     print('NBA Daily Report Sent')
 
     lower_window = nba_alerts.get_time_windows(nba_games)
