@@ -2,8 +2,8 @@ from nba_api.stats.static import teams
 import nba_api.stats.endpoints as endpoints
 import pandas as pd
 
-def get_games(season):
-    leaguegamelog = endpoints.leaguegamelog.LeagueGameLog(season=season, player_or_team_abbreviation='T')
+def get_games(headers):
+    leaguegamelog = endpoints.leaguegamelog.LeagueGameLog(headers=headers)
     df_games = leaguegamelog.get_data_frames()[0]
     return df_games
 
@@ -29,9 +29,20 @@ def get_updated_elo_ratings(r_a, r_h, point_differential):
     r_h_new = r_h + k * multiplier * (s_h - e_h)
     return r_a_new, r_h_new
 
-def get_team_elos(season):
+def get_team_elos():
+    headers = {
+        "Host": "stats.nba.com",
+        "Connection": "keep-alive",
+        "Accept": "application/json, text/plain, /",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+        "Referer": "https://www.nba.com/",
+        "Origin": "https://www.nba.com",
+        "x-nba-stats-origin": "stats",
+        "x-nba-stats-token": "true",
+        "Accept-Language": "en-US,en;q=0.9"
+    }
+    df_games = get_games(headers)
     df_teams = pd.DataFrame(teams.get_teams())
-    df_games = get_games(season)
     elos = {team: 1500 for team in df_teams['abbreviation']}
     for _, game in df_games.iterrows():
         if 'vs.' in game['MATCHUP']:
@@ -42,8 +53,7 @@ def get_team_elos(season):
     return elos
 
 def get_output():
-    season = '2025-26'
-    elos = get_team_elos(season)
+    elos = get_team_elos()
     df_teams = pd.DataFrame(teams.get_teams())
     df_teams['rating'] = df_teams['abbreviation'].map(elos).round()
     output = {row['nickname']: row['rating'] for _, row in df_teams.iterrows()}

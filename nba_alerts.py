@@ -1,13 +1,15 @@
-from datetime import timedelta, datetime as dt
+from datetime import datetime as dt
 import nba_watchability
 import requests
 
 def set_game_urls(games):
-    for away, home in games:
-        # games[away, home]['url'] = f'https://givemereddit.eu/nba/{home.lower()}.html'
-        away_city = games[away, home]['away_city']
-        home_city = games[away, home]['home_city']
-        games[away, home]['url'] = f'https://crackstreams.ms/stream/{away_city}-{away}-vs-{home_city}-{home}'
+    for game in games:
+        away_full = games[game]['away_full']
+        home_full = games[game]['home_full']
+        url1 = 'https://crackstreams.ms/stream/%s-vs-%s' % (away_full, home_full)
+        url2 = 'https://crackstreams.ms/stream/%s-vs-%s' % (home_full, away_full)
+        url = url2 if '404 Not Found - CrackStreamsms' in requests.get(url1).text else url1
+        games[game]['url'] = url
 
 def set_games():
     espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
@@ -16,15 +18,12 @@ def set_games():
     games = {}
     for event in data['events']:
         home, away = event['competitions'][0]['competitors']
-        away_city = away['team']['displayName'].split()[0]
-        home_city = home['team']['displayName'].split()[0]
-        away_team = away['team']['displayName'].split()[-1]
-        home_team = home['team']['displayName'].split()[-1]
+        away_team = away['team']['name'].split()[-1]
+        home_team = home['team']['name'].split()[-1]
         games[(away_team, home_team)] = {
-            'url': '',
             'time': event['status']['type']['shortDetail'].split('-')[1][1:],
-            'away_city': away_city,
-            'home_city': home_city
+            'away_full': away['team']['displayName'].replace(' ', '-').replace('LA', 'Los-Angeles'),
+            'home_full': home['team']['displayName'].replace(' ', '-').replace('LA', 'Los-Angeles'),
         }
     set_game_urls(games)
     return games

@@ -18,18 +18,12 @@ Crunchtime Alerts is a Python-based project designed to provide real-time notifi
     cd crunchtime-alerts
     ```
 
-2. Create and activate a virtual environment:
+2. Install the project dependencies with uv:
     ```sh
-    python3 -m venv venv
-    source venv/bin/activate
+    uv sync
     ```
 
-3. Install the required dependencies:
-    ```sh
-    pip install -r requirements.txt
-    ```
-
-4. Set up your Slack bot token in `config.py`:
+3. Set up your Slack bot token in `config.py`:
     ```python
     # config.py
     bot_token = 'your-slack-bot-token'
@@ -39,7 +33,12 @@ Crunchtime Alerts is a Python-based project designed to provide real-time notifi
 
 To run the Crunchtime Alerts script, simply execute the `main.py` file:
 ```sh
-python main.py
+uv run main.py
+```
+
+You can also run any of the Python scripts through the same managed environment:
+```sh
+uv run python nba_elo.py
 ```
 
 ## Project Structure
@@ -53,8 +52,10 @@ crunchtime-alerts/
 ├── nba_elo.py
 ├── nba_teams.csv
 ├── nba_watchability.py
+├── pyproject.toml
 ├── README.md
-└── requirements.txt
+├── requirements.txt
+└── uv.lock
 ```
 
 ## Key Modules

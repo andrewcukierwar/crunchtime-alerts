@@ -1,6 +1,6 @@
 from datetime import datetime as dt
 from time import time, sleep
-from slack import WebClient
+from slack_sdk import WebClient
 import requests
 import nba_alerts
 import config
