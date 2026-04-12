@@ -1,4 +1,7 @@
 
+# Log files
+*.log
+
 # Secrets — flat file and variant filenames (.env/ directory entry below covers dirs)
 .env
 .env.*
