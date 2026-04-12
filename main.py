@@ -1,11 +1,17 @@
+import os
+import sys
 from datetime import datetime as dt
 from time import time, sleep
 from slack_sdk import WebClient
 import nba_alerts
-import config
 
 def main():
-    client = WebClient(token=config.bot_token)
+    token = os.environ.get("SLACK_BOT_TOKEN")
+    if not token:
+        sys.exit("Error: SLACK_BOT_TOKEN is not set. See .env.example for setup instructions.")
+    if not token.startswith("xoxb-"):
+        sys.exit("Error: SLACK_BOT_TOKEN does not look like a Slack bot token (expected xoxb-...). Check .env.example.")
+    client = WebClient(token=token)
 
     nba_games = nba_alerts.set_games()
     nba_alerted = {'5 Min': set(), '1 Min': set(), 'OT': set()}
