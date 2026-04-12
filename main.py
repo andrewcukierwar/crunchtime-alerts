@@ -20,7 +20,20 @@ def main():
         sys.exit("Error: SLACK_BOT_TOKEN does not look like a Slack bot token (expected xoxb-...). Check .env.example.")
     client = WebClient(token=token)
 
-    nba_games = nba_alerts.set_games()
+    try:
+        nba_games = nba_alerts.set_games()
+    except Exception as e:
+        logging.error('Failed to fetch games from ESPN: %s', e)
+        sys.exit(1)
+
+    if not nba_games:
+        logging.info('No NBA games today')
+        try:
+            client.chat_postMessage(channel='#crunchtime-alerts', text='No NBA games today')
+        except Exception as e:
+            logging.warning('Failed to post rest-day message: %s', e)
+        sys.exit(0)
+
     nba_alerted = {'5 Min': set(), '1 Min': set(), 'OT': set()}
 
     nba_daily_report = nba_alerts.get_daily_report(nba_games)
@@ -28,6 +41,9 @@ def main():
     logging.info('NBA daily report sent')
 
     lower_window = nba_alerts.get_time_windows(nba_games)
+    if lower_window is None:
+        logging.error('Could not determine game start windows')
+        sys.exit(1)
 
     # listen for new alerts
 

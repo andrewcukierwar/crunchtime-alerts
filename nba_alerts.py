@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime as dt
 import nba_watchability
 import requests
@@ -13,7 +14,7 @@ def set_game_urls(games):
 
 def set_games():
     espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
-    response = requests.get(espn_api)
+    response = requests.get(espn_api, timeout=10)
     data = response.json()
     games = {}
     for event in data['events']:
@@ -80,11 +81,13 @@ def send_alerts(client, games, alerted):
             text = '<%s|%s %s, %s %s. %s remaining>' % (game['url'], away_team, away_score, 
             	home_team, home_score, game['displayClock'])
             response = client.chat_postMessage(channel='#crunchtime-alerts', text=text)
-            print('Alert Sent')
+            logging.info('Alert sent: %s vs %s (%s)', away_team, home_team, timeframe)
             alerted[timeframe].add(teams)
     return games, alerted
 
 def get_time_windows(games):
+    if not games:
+        return None
     today = dt.now().date()
     first_game_time = ''.join(list(games.values())[0]['time'].split()[:2])
     lower_window = dt.combine(today, dt.strptime(first_game_time, '%I:%M%p').time())
