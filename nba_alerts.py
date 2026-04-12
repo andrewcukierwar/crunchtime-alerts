@@ -35,7 +35,7 @@ def set_games():
 
 def update_games(games):
     espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
-    response = requests.get(espn_api)
+    response = requests.get(espn_api, timeout=10)
     data = response.json()
     for event in data['events']:
         home, away = event['competitions'][0]['competitors']
@@ -85,9 +85,12 @@ def send_alerts(client, games, alerted):
             away_score, home_score = game['score']
             text = '<%s|%s %s, %s %s. %s remaining>' % (game['url'], away_team, away_score, 
             	home_team, home_score, game['displayClock'])
-            response = client.chat_postMessage(channel='#crunchtime-alerts', text=text)
-            logging.info('Alert sent: %s vs %s (%s)', away_team, home_team, timeframe)
-            alerted[timeframe].add(teams)
+            try:
+                client.chat_postMessage(channel='#crunchtime-alerts', text=text)
+                logging.info('Alert sent: %s vs %s (%s)', away_team, home_team, timeframe)
+                alerted[timeframe].add(teams)
+            except Exception as e:
+                logging.warning('Failed to send alert for %s vs %s (%s): %s', away_team, home_team, timeframe, e)
     return games, alerted
 
 def get_time_windows(games):
