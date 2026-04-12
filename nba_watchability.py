@@ -1,3 +1,4 @@
+import logging
 import requests
 import nba_elo
 
@@ -14,8 +15,12 @@ def has_favorite_teams(teams):
 
 def get_watchability(ratings):
     espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
-    response = requests.get(espn_api)
-    data = response.json()
+    try:
+        response = requests.get(espn_api, timeout=10)
+        data = response.json()
+    except Exception as e:
+        logging.warning('Could not fetch watchability data: %s', e)
+        return {}
 
     watchability_dict = {}
     for event in data['events']:
