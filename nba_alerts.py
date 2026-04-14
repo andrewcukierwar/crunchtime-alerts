@@ -3,6 +3,8 @@ from datetime import datetime as dt
 import nba_watchability
 import requests
 
+CLOCK_ZERO = 0.001  # ESPN returns a small non-zero float for completed games, not exactly 0.0
+
 def set_game_urls(games):
     for game in games:
         away_full = games[game]['away_full']
@@ -29,6 +31,10 @@ def set_games():
             'time': event['status']['type']['shortDetail'].split('-')[1][1:],
             'away_full': away['team']['displayName'].replace(' ', '-').replace('LA', 'Los-Angeles'),
             'home_full': home['team']['displayName'].replace(' ', '-').replace('LA', 'Los-Angeles'),
+            'score': (0, 0),
+            'quarter': 0,
+            'clock': 9999.0,
+            'displayClock': '',
         }
     set_game_urls(games)
     return games
@@ -103,7 +109,7 @@ def get_time_windows(games):
 
 def is_completed(games):
     for game in games.values():
-        if game['quarter'] < 4 or game['clock'] > 0.001 or game['score'][0] == game['score'][1]:
+        if game['quarter'] < 4 or game['clock'] > CLOCK_ZERO or game['score'][0] == game['score'][1]:
             return False
     return True
 
@@ -116,7 +122,7 @@ def get_score_report(games):
         if away_score + home_score == 0: # game hasn't started
             text = '<%s|%s @ %s at %s>\n%s Watchability' % (game['url'], away_team, home_team, 
                 game['time'], game['Watchability'])
-        elif game['quarter'] >= 4 and game['clock'] <= 0.001 and away_score != home_score: # game completed
+        elif game['quarter'] >= 4 and game['clock'] <= CLOCK_ZERO and away_score != home_score: # game completed
             text = '%s %s, %s %s' % (away_team, away_score, home_team, home_score)
         all_text.append(text)
     score_report = '\n\n'.join(all_text)

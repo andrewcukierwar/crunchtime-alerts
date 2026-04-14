@@ -4,7 +4,7 @@ import sys
 from datetime import datetime as dt
 from logging.handlers import RotatingFileHandler
 from time import time, sleep
-import requests
+from requests.exceptions import RequestException
 from slack_sdk import WebClient
 import nba_alerts
 
@@ -58,21 +58,14 @@ def main():
 
     logging.info('First game started')
 
-    try:
-        nba_games, nba_alerted = nba_alerts.send_alerts(client, nba_games, nba_alerted)
-    except (requests.exceptions.RequestException, KeyError, ValueError) as e:
-        logging.warning('Error during game update cycle: %s', e)
-
     while not nba_alerts.is_completed(nba_games):
         try:
             nba_games, nba_alerted = nba_alerts.send_alerts(client, nba_games, nba_alerted)
-        except (requests.exceptions.RequestException, KeyError, ValueError) as e:
+        except (RequestException, KeyError, ValueError) as e:
             logging.warning('Error during game update cycle: %s', e)
         sleep(60 - time() % 60)
 
     logging.info('All games completed')
 
-    return
-
 if __name__ == "__main__":
- 	main()
+    main()
