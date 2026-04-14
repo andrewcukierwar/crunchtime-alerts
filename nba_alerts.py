@@ -1,6 +1,9 @@
+import logging
 from datetime import datetime as dt
 import nba_watchability
 import requests
+
+CLOCK_ZERO = 0.001  # ESPN returns a small non-zero float for completed games, not exactly 0.0
 
 def set_game_urls(games):
     for game in games:
@@ -8,12 +11,16 @@ def set_game_urls(games):
         home_full = games[game]['home_full']
         url1 = 'https://crackstreams.ms/stream/%s-vs-%s' % (away_full, home_full)
         url2 = 'https://crackstreams.ms/stream/%s-vs-%s' % (home_full, away_full)
-        url = url2 if '404 Not Found - CrackStreamsms' in requests.get(url1).text else url1
+        try:
+            url = url2 if '404 Not Found - CrackStreamsms' in requests.get(url1, timeout=5).text else url1
+        except Exception as e:
+            logging.warning('Could not fetch stream URL for %s vs %s: %s', away_full, home_full, e)
+            url = '#'
         games[game]['url'] = url
 
 def set_games():
     espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
-    response = requests.get(espn_api)
+    response = requests.get(espn_api, timeout=10)
     data = response.json()
     games = {}
     for event in data['events']:
@@ -24,13 +31,17 @@ def set_games():
             'time': event['status']['type']['shortDetail'].split('-')[1][1:],
             'away_full': away['team']['displayName'].replace(' ', '-').replace('LA', 'Los-Angeles'),
             'home_full': home['team']['displayName'].replace(' ', '-').replace('LA', 'Los-Angeles'),
+            'score': (0, 0),
+            'quarter': 0,
+            'clock': 9999.0,
+            'displayClock': '',
         }
     set_game_urls(games)
     return games
 
 def update_games(games):
     espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
-    response = requests.get(espn_api)
+    response = requests.get(espn_api, timeout=10)
     data = response.json()
     for event in data['events']:
         home, away = event['competitions'][0]['competitors']
@@ -59,8 +70,9 @@ def check_for_new_alerts(games, alerted):
 def get_daily_report(games):
     ratings = nba_watchability.get_team_ratings()
     watchability_dict = nba_watchability.get_watchability(ratings)
+    default_watchability = {'Watchability': 'Medium', 'Away Rating': 0, 'Home Rating': 0}
     for game in games:
-        games[game].update(watchability_dict[game])
+        games[game].update(watchability_dict.get(game, default_watchability))
     all_text = []
     for (away_team, home_team), game in games.items():
         text = '<%s|%s @ %s at %s>\n%s Watchability' % (game['url'], away_team, home_team, 
@@ -79,12 +91,17 @@ def send_alerts(client, games, alerted):
             away_score, home_score = game['score']
             text = '<%s|%s %s, %s %s. %s remaining>' % (game['url'], away_team, away_score, 
             	home_team, home_score, game['displayClock'])
-            response = client.chat_postMessage(channel='#crunchtime-alerts', text=text)
-            print('Alert Sent')
-            alerted[timeframe].add(teams)
+            try:
+                client.chat_postMessage(channel='#crunchtime-alerts', text=text)
+                logging.info('Alert sent: %s vs %s (%s)', away_team, home_team, timeframe)
+                alerted[timeframe].add(teams)
+            except Exception as e:
+                logging.warning('Failed to send alert for %s vs %s (%s): %s', away_team, home_team, timeframe, e)
     return games, alerted
 
 def get_time_windows(games):
+    if not games:
+        return None
     today = dt.now().date()
     first_game_time = ''.join(list(games.values())[0]['time'].split()[:2])
     lower_window = dt.combine(today, dt.strptime(first_game_time, '%I:%M%p').time())
@@ -92,7 +109,7 @@ def get_time_windows(games):
 
 def is_completed(games):
     for game in games.values():
-        if game['quarter'] < 4 or game['clock'] != 0 or game['score'][0] == game['score'][1]:
+        if game['quarter'] < 4 or game['clock'] > CLOCK_ZERO or game['score'][0] == game['score'][1]:
             return False
     return True
 
@@ -105,7 +122,7 @@ def get_score_report(games):
         if away_score + home_score == 0: # game hasn't started
             text = '<%s|%s @ %s at %s>\n%s Watchability' % (game['url'], away_team, home_team, 
                 game['time'], game['Watchability'])
-        elif game['quarter'] >= 4 and game['clock'] == 0 and away_score != home_score: # game completed
+        elif game['quarter'] >= 4 and game['clock'] <= CLOCK_ZERO and away_score != home_score: # game completed
             text = '%s %s, %s %s' % (away_team, away_score, home_team, home_score)
         all_text.append(text)
     score_report = '\n\n'.join(all_text)
