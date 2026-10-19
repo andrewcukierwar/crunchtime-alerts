@@ -4,13 +4,14 @@ import nba_watchability
 import requests
 
 CLOCK_ZERO = 0.001  # ESPN returns a small non-zero float for completed games, not exactly 0.0
+STREAM_BASE_URL = 'https://crackstreams.mx/stream'
 
 def set_game_urls(games):
     for game in games.values():
         away_full = game['away_full']
         home_full = game['home_full']
-        url1 = 'https://crackstreams.ms/stream/%s-vs-%s' % (away_full, home_full)
-        url2 = 'https://crackstreams.ms/stream/%s-vs-%s' % (home_full, away_full)
+        url1 = '%s/%s-vs-%s' % (STREAM_BASE_URL, away_full, home_full)
+        url2 = '%s/%s-vs-%s' % (STREAM_BASE_URL, home_full, away_full)
         try:
             url = url2 if '404 Not Found - CrackStreamsms' in requests.get(url1, timeout=5).text else url1
         except Exception as e:
