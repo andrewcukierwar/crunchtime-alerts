@@ -7,6 +7,10 @@ def get_team_ratings():
     ratings['Blazers'] = ratings['Trail Blazers']
     return ratings
 
+def get_team_names(event):
+    home, away = event['competitions'][0]['competitors']
+    return away['team']['displayName'].split()[-1], home['team']['displayName'].split()[-1]
+
 def has_favorite_teams(teams):
     # TODO: Replace with dynamic preferences per user.
     FAV_TEAMS = ['Knicks']
@@ -24,9 +28,10 @@ def get_watchability(ratings):
 
     watchability_dict = {}
     for event in data['events']:
-        home, away = event['competitions'][0]['competitors']
-        away_team = away['team']['displayName'].split()[-1]
-        home_team = home['team']['displayName'].split()[-1]
+        away_team, home_team = get_team_names(event)
+        if away_team not in ratings or home_team not in ratings:
+            logging.warning('No rating for %s @ %s; using default watchability', away_team, home_team)
+            continue
         away_rating = ratings[away_team]
         home_rating = ratings[home_team]
         total_rating = away_rating + home_rating
