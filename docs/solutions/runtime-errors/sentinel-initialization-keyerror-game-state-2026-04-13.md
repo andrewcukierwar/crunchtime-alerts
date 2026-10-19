@@ -99,6 +99,8 @@ The sentinel values were chosen so that every downstream consumer handles them c
 | `score` | `(0, 0)` | `check_for_new_alerts()` reads `score` → `differential=0`; `quarter==4` is `False` → no alerts |
 | `displayClock` | `''` | Alert text formatting safely produces an empty string |
 
+> **Update 2026-10-19:** `is_completed()` no longer reads `quarter` or `clock`. `set_games()` now stores ESPN's real `state` (`pre`/`in`/`post`) from the first fetch, and completion is `state == 'post'` (see the update in `docs/solutions/logic-errors/float-equality-espn-clock-comparison-2026-04-13.md`). The sentinels above still keep `check_for_new_alerts()` and alert formatting safe before the first update.
+
 The while loop enters on its first iteration (sentinel `quarter=0 < 4`), `send_alerts()` calls `update_games()` which overwrites all sentinel values with live ESPN data, and subsequent iterations evaluate real game state.
 
 Removing the priming call is also important: a priming call whose exception is silently swallowed creates a hidden failure mode where the caller cannot tell whether the priming succeeded. The loop's first iteration is a cleaner, self-contained design — the loop itself is the consumer of data, so it should own the first fetch.
