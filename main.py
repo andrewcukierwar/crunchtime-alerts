@@ -1,12 +1,14 @@
 import logging
 import os
 import sys
-from datetime import datetime as dt
+from datetime import datetime as dt, timedelta
 from logging.handlers import RotatingFileHandler
 from time import time, sleep
 from requests.exceptions import RequestException
 from slack_sdk import WebClient
 import nba_alerts
+
+STOP_HOUR = 3 # stop polling at 3 AM the next morning even if a game never reports as finished
 
 def main():
     handler_file = RotatingFileHandler('crunchtime.log', maxBytes=1_000_000, backupCount=3)
@@ -21,8 +23,9 @@ def main():
         sys.exit("Error: SLACK_BOT_TOKEN does not look like a Slack bot token (expected xoxb-...). Check .env.example.")
     client = WebClient(token=token)
 
+    slate_date = (dt.now() - timedelta(hours=STOP_HOUR)).date() # before 3 AM, still last night's slate
     try:
-        nba_games = nba_alerts.set_games()
+        nba_games = nba_alerts.set_games(slate_date)
     except Exception as e:
         logging.error('Failed to fetch games from ESPN: %s', e)
         sys.exit(1)
@@ -58,9 +61,13 @@ def main():
 
     logging.info('First game started')
 
+    cutoff = dt.combine(slate_date, dt.min.time()) + timedelta(days=1, hours=STOP_HOUR)
     while not nba_alerts.is_completed(nba_games):
+        if dt.now() >= cutoff:
+            logging.warning('Stopping at %s cutoff with games still unfinished', cutoff.strftime('%-I:%M %p'))
+            return
         try:
-            nba_games, nba_alerted = nba_alerts.send_alerts(client, nba_games, nba_alerted)
+            nba_games, nba_alerted = nba_alerts.send_alerts(client, nba_games, nba_alerted, slate_date)
         except (RequestException, KeyError, ValueError) as e:
             logging.warning('Error during game update cycle: %s', e)
         sleep(60 - time() % 60)

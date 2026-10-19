@@ -1,9 +1,16 @@
+import logging
+from nba_api.stats.library.parameters import Season
 from nba_api.stats.static import teams
 import nba_api.stats.endpoints as endpoints
 import pandas as pd
 
-def get_games(headers):
-    leaguegamelog = endpoints.leaguegamelog.LeagueGameLog(headers=headers)
+# FiveThirtyEight carries 75% of a team's end-of-season rating into the next season
+# and reverts the rest toward the league mean of 1505
+SEASON_CARRYOVER = 0.75
+MEAN_ELO = 1505
+
+def get_games(headers, season):
+    leaguegamelog = endpoints.leaguegamelog.LeagueGameLog(season=season, headers=headers)
     df_games = leaguegamelog.get_data_frames()[0]
     return df_games
 
@@ -29,6 +36,18 @@ def get_updated_elo_ratings(r_a, r_h, point_differential):
     r_h_new = r_h + k * multiplier * (s_h - e_h)
     return r_a_new, r_h_new
 
+def get_previous_season(season):
+    start_year = int(season[:4]) - 1 # '2026-27' -> '2025-26'
+    return '%d-%s' % (start_year, str(start_year + 1)[2:])
+
+def apply_games(elos, df_games):
+    for _, game in df_games.iterrows():
+        if 'vs.' in game['MATCHUP']:
+            continue
+        away_team, home_team = game['MATCHUP'].split(' @ ')
+        point_differential = game['PLUS_MINUS'] * -1
+        elos[away_team], elos[home_team] = get_updated_elo_ratings(elos[away_team], elos[home_team], point_differential)
+
 def get_team_elos():
     headers = {
         "Host": "stats.nba.com",
@@ -42,15 +61,17 @@ def get_team_elos():
         "Accept-Language": "en-US,en;q=0.9"
     }
     
-    df_games = get_games(headers)
     df_teams = pd.DataFrame(teams.get_teams())
     elos = {team: 1500 for team in df_teams['abbreviation']}
-    for _, game in df_games.iterrows():
-        if 'vs.' in game['MATCHUP']:
-            continue
-        away_team, home_team = game['MATCHUP'].split(' @ ')
-        point_differential = game['PLUS_MINUS'] * -1
-        elos[away_team], elos[home_team] = get_updated_elo_ratings(elos[away_team], elos[home_team], point_differential)
+    season = Season.default
+    try:
+        previous_elos = dict(elos)
+        apply_games(previous_elos, get_games(headers, get_previous_season(season)))
+        elos = {team: SEASON_CARRYOVER * rating + (1 - SEASON_CARRYOVER) * MEAN_ELO
+                for team, rating in previous_elos.items()}
+    except Exception as e:
+        logging.warning('Could not carry over last season\'s ratings; starting from 1500: %s', e)
+    apply_games(elos, get_games(headers, season))
     return elos
 
 def get_output():
