@@ -6,23 +6,26 @@ import requests
 CLOCK_ZERO = 0.001  # ESPN returns a small non-zero float for completed games, not exactly 0.0
 STREAM_BASE_URL = 'https://crackstreams.mx/stream'
 # National broadcasters (ESPN's names) -> streaming app; other games fall back to STREAM_BASE_URL
-NATIONAL_STREAM_URLS = {
-    'ESPN': 'https://www.espn.com/watch/',
-    'ABC': 'https://www.espn.com/watch/',
-    'NBC': 'https://www.peacocktv.com/sports/nba',
-    'NBCSN': 'https://www.peacocktv.com/sports/nba',
-    'Peacock': 'https://www.peacocktv.com/sports/nba',
-    'Prime Video': 'https://www.primevideo.com/',
+NATIONAL_STREAMS = {
+    'ESPN': ('ESPN', 'https://www.espn.com/watch/'),
+    'ABC': ('ESPN', 'https://www.espn.com/watch/'),
+    'NBC': ('Peacock', 'https://www.peacocktv.com/sports/nba'),
+    'NBCSN': ('Peacock', 'https://www.peacocktv.com/sports/nba'),
+    'Peacock': ('Peacock', 'https://www.peacocktv.com/sports/nba'),
+    'Prime Video': ('Prime Video', 'https://www.primevideo.com/'),
 }
 
-def get_national_stream_url(event):
+def get_national_stream(event):
     for broadcast in event['competitions'][0].get('broadcasts', []):
         if broadcast.get('market') != 'national':
             continue
         for name in broadcast.get('names', []):
-            if name in NATIONAL_STREAM_URLS:
-                return NATIONAL_STREAM_URLS[name]
-    return None
+            if name in NATIONAL_STREAMS:
+                return NATIONAL_STREAMS[name]
+    return None, None
+
+def get_service_label(game):
+    return ' (%s)' % game['service'] if game['service'] else ''
 
 def set_game_urls(games):
     for game in games.values():
@@ -48,6 +51,7 @@ def set_games():
     for event in data['events']:
         home, away = event['competitions'][0]['competitors']
         away_team, home_team = nba_watchability.get_team_names(event)
+        service, national_url = get_national_stream(event)
         # keyed by ESPN event id: stable across polls, unlike team names
         games[event['id']] = {
             'away': away_team,
@@ -59,7 +63,8 @@ def set_games():
             'quarter': 0,
             'clock': 9999.0,
             'displayClock': '',
-            'national_url': get_national_stream_url(event),
+            'service': service,
+            'national_url': national_url,
         }
     set_game_urls(games)
     return games
@@ -101,8 +106,8 @@ def get_daily_report(games):
         game.update(watchability_dict.get((game['away'], game['home']), default_watchability))
     all_text = []
     for game in games.values():
-        text = '<%s|%s @ %s at %s>\n%s Watchability' % (game['url'], game['away'], game['home'], 
-            game['time'], game['Watchability'])
+        text = '<%s|%s @ %s at %s>%s\n%s Watchability' % (game['url'], game['away'], game['home'], 
+            game['time'], get_service_label(game), game['Watchability'])
         all_text.append(text)
     daily_report = '\n\n'.join(all_text)
     return daily_report
@@ -115,8 +120,8 @@ def send_alerts(client, games, alerted):
             game = games[game_id]
             away_team, home_team = game['away'], game['home']
             away_score, home_score = game['score']
-            text = '<%s|%s %s, %s %s. %s remaining>' % (game['url'], away_team, away_score, 
-            	home_team, home_score, game['displayClock'])
+            text = '<%s|%s %s, %s %s. %s remaining>%s' % (game['url'], away_team, away_score, 
+            	home_team, home_score, game['displayClock'], get_service_label(game))
             try:
                 client.chat_postMessage(channel='#crunchtime-alerts', text=text)
                 logging.info('Alert sent: %s vs %s (%s)', away_team, home_team, timeframe)
