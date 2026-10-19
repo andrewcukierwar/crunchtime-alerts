@@ -5,9 +5,30 @@ import requests
 
 CLOCK_ZERO = 0.001  # ESPN returns a small non-zero float for completed games, not exactly 0.0
 STREAM_BASE_URL = 'https://crackstreams.mx/stream'
+# National broadcasters (ESPN's names) -> streaming app; other games fall back to STREAM_BASE_URL
+NATIONAL_STREAM_URLS = {
+    'ESPN': 'https://www.espn.com/watch/',
+    'ABC': 'https://www.espn.com/watch/',
+    'NBC': 'https://www.peacocktv.com/sports/nba',
+    'NBCSN': 'https://www.peacocktv.com/sports/nba',
+    'Peacock': 'https://www.peacocktv.com/sports/nba',
+    'Prime Video': 'https://www.primevideo.com/',
+}
+
+def get_national_stream_url(event):
+    for broadcast in event['competitions'][0].get('broadcasts', []):
+        if broadcast.get('market') != 'national':
+            continue
+        for name in broadcast.get('names', []):
+            if name in NATIONAL_STREAM_URLS:
+                return NATIONAL_STREAM_URLS[name]
+    return None
 
 def set_game_urls(games):
     for game in games.values():
+        if game['national_url']:
+            game['url'] = game['national_url']
+            continue
         away_full = game['away_full']
         home_full = game['home_full']
         url1 = '%s/%s-vs-%s' % (STREAM_BASE_URL, away_full, home_full)
@@ -38,6 +59,7 @@ def set_games():
             'quarter': 0,
             'clock': 9999.0,
             'displayClock': '',
+            'national_url': get_national_stream_url(event),
         }
     set_game_urls(games)
     return games
