@@ -23,11 +23,15 @@ Crunchtime Alerts is a Python-based project designed to provide real-time notifi
     uv sync
     ```
 
-3. Set up your Slack bot token in `config.py`:
-    ```python
-    # config.py
-    bot_token = 'your-slack-bot-token'
+3. Set up your Slack bot token:
+    ```sh
+    cp .env.example .env
     ```
+    Then open `.env` and replace the placeholder with your bot token:
+    ```
+    SLACK_BOT_TOKEN=xoxb-your-token-here
+    ```
+    To avoid exposing the token in shell history, export it from your shell profile instead of passing it inline.
 
 ## Usage
 
@@ -45,8 +49,9 @@ uv run python nba_elo.py
 
 ```
 crunchtime-alerts/
+├── .env.example
+├── .env             # gitignored — create from .env.example
 ├── .gitignore
-├── config.py
 ├── main.py
 ├── nba_alerts.py
 ├── nba_elo.py
