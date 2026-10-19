@@ -22,9 +22,12 @@ tags:
   - python
   - silent-logic-error
   - polling-loop
+  - superseded
 ---
 
 # Float Equality Bug with ESPN Game Clock Values
+
+> **Update 2026-10-19:** `CLOCK_ZERO` and the clock-based checks below have been removed. Completion now comes from ESPN's explicit game state — see [Update](#update-2026-10-19-use-espns-game-state-instead) at the end. The float-equality lesson still applies; the fix described here is no longer in the code.
 
 ## Problem
 
@@ -75,6 +78,35 @@ Naming the constant also documents intent for future readers and prevents the tw
 - **Extract float thresholds as named constants** with a comment explaining the tolerance and its rationale. This forces you to choose the epsilon deliberately and documents it for future readers.
 - **Verify the clock unit before choosing an epsilon.** `0.001` is safe for a seconds-based clock but would be dangerously large for a minutes-based one (0.001 minutes = 0.06 seconds — a live game could be at that value).
 - **Grep for all uses of the same field** before declaring a fix complete. The `clock == 0` pattern appeared in both `is_completed()` and `get_score_report()` — a single-site fix would have left the second site broken.
+
+## Update (2026-10-19): Use ESPN's Game State Instead
+
+The epsilon fix made `is_completed()` work for normal finals, but inferring "game over" from clock, quarter, and score still had gaps:
+
+- **Postponed or canceled games** never reach Q4 with the clock at zero, so `is_completed()` stayed `False` and the bot polled forever.
+- **Ties at the end of regulation** look like Q4/0:00 too; the score check covered that case, but only by piling more inference onto the clock value.
+
+ESPN already reports the game's status directly in `event['status']['type']`:
+
+| Situation | `name` | `state` | `completed` |
+|---|---|---|---|
+| Scheduled | `STATUS_SCHEDULED` | `pre` | `False` |
+| Live | `STATUS_IN_PROGRESS` | `in` | `False` |
+| Final | `STATUS_FINAL` | `post` | `True` |
+| Postponed | `STATUS_POSTPONED` | `post` | `False` |
+
+`state` is the field to use: `completed` is `False` for postponed games, but `state` is `post` for every game that will not be played further. `set_games()` and `update_games()` now store it, and:
+
+```python
+def is_completed(games):
+    return all(game['state'] == 'post' for game in games.values())
+```
+
+`get_score_report()` uses `game['state'] == 'post'` the same way, and `check_for_new_alerts()` only alerts when `state == 'in'`. As a backstop, `main.py` also stops polling at 3 AM after the slate date.
+
+**Verified** against ESPN's scoreboard for 2025-01-09, where Hornets @ Lakers was postponed (`STATUS_POSTPONED`, `state: post`, `completed: False`): the slate now reports complete.
+
+**Prevention, revised:** before deriving a status from raw values (clock, score, period), check whether the API already exposes that status explicitly. Prefer the explicit field, and verify which field covers the edge cases (here, `state` rather than `completed`).
 
 ## Related Issues
 

@@ -117,5 +117,9 @@ dmypy.json
 Thumbs.db
 ehthumbs.db
 
+# Sent-alert state for the current slate
+alert_state.json
+alert_state.json.tmp
+
 # Local agent review artifacts
 .context/

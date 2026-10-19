@@ -38,14 +38,18 @@ def main():
             logging.warning('Failed to post rest-day message: %s', e)
         sys.exit(0)
 
-    nba_alerted = {'5 Min': set(), '1 Min': set(), 'OT': set()}
-
-    nba_daily_report = nba_alerts.get_daily_report(nba_games)
-    try:
-        client.chat_postMessage(channel='#crunchtime-alerts', text=nba_daily_report)
-        logging.info('NBA daily report sent')
-    except Exception as e:
-        logging.warning('Failed to send daily report: %s', e)
+    nba_alerted = nba_alerts.load_alerted(slate_date)
+    if nba_alerted is None:
+        nba_alerted = nba_alerts.new_alerted()
+        nba_daily_report = nba_alerts.get_daily_report(nba_games)
+        try:
+            client.chat_postMessage(channel='#crunchtime-alerts', text=nba_daily_report)
+            logging.info('NBA daily report sent')
+            nba_alerts.save_alerted(nba_alerted, slate_date) # restarts skip the report from here on
+        except Exception as e:
+            logging.warning('Failed to send daily report: %s', e)
+    else:
+        logging.info('Daily report already sent for this slate; skipping')
 
     lower_window = nba_alerts.get_time_windows(nba_games)
     if lower_window is None:

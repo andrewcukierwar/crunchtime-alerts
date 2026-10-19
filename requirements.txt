@@ -1,5 +1,4 @@
-nba-api==1.1.11
-numpy<2.0
-pandas==2.1.1
-requests==2.31.0
-slack-sdk==3.21.3
+nba-api==1.11.4
+pandas==3.0.6
+requests==2.34.2
+slack-sdk==3.45.0
