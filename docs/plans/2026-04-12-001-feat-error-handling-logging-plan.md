@@ -1,7 +1,7 @@
 ---
 title: "feat: Add error handling, logging, and bug fixes across all external calls"
 type: feat
-status: active
+status: completed
 date: 2026-04-12
 origin: docs/brainstorms/2026-04-12-error-handling-logging-requirements.md
 ---
