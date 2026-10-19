@@ -3,7 +3,7 @@ from datetime import datetime as dt
 import nba_watchability
 import requests
 
-CLOCK_ZERO = 0.001  # ESPN returns a small non-zero float for completed games, not exactly 0.0
+SCOREBOARD_URL = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
 STREAM_BASE_URL = 'https://crackstreams.mx/stream'
 # National broadcasters (ESPN's names) -> streaming app; other games fall back to STREAM_BASE_URL
 NATIONAL_STREAMS = {
@@ -27,6 +27,12 @@ def get_national_stream(event):
 def get_service_label(game):
     return ' (%s)' % game['service'] if game['service'] else ''
 
+def get_scoreboard(slate_date):
+    # request the date explicitly: until late morning the default scoreboard still shows last night's games
+    response = requests.get(SCOREBOARD_URL, params={'dates': slate_date.strftime('%Y%m%d')}, timeout=10)
+    response.raise_for_status()
+    return response.json()
+
 def set_game_urls(games):
     for game in games.values():
         if game['national_url']:
@@ -43,20 +49,21 @@ def set_game_urls(games):
             url = '#'
         game['url'] = url
 
-def set_games():
-    espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
-    response = requests.get(espn_api, timeout=10)
-    data = response.json()
+def set_games(slate_date):
+    data = get_scoreboard(slate_date)
     games = {}
     for event in data['events']:
         home, away = event['competitions'][0]['competitors']
         away_team, home_team = nba_watchability.get_team_names(event)
         service, national_url = get_national_stream(event)
+        start = dt.fromisoformat(event['date']).astimezone() # ESPN dates are UTC, e.g. 2026-10-20T23:00Z
         # keyed by ESPN event id: stable across polls, unlike team names
         games[event['id']] = {
             'away': away_team,
             'home': home_team,
-            'time': event['status']['type']['shortDetail'].split('-')[1][1:],
+            'start': start.replace(tzinfo=None),
+            'time': start.strftime('%-I:%M %p %Z'),
+            'state': event['status']['type']['state'],
             'away_full': away['team']['displayName'].replace(' ', '-').replace('LA', 'Los-Angeles'),
             'home_full': home['team']['displayName'].replace(' ', '-').replace('LA', 'Los-Angeles'),
             'score': (0, 0),
@@ -69,10 +76,8 @@ def set_games():
     set_game_urls(games)
     return games
 
-def update_games(games):
-    espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
-    response = requests.get(espn_api, timeout=10)
-    data = response.json()
+def update_games(games, slate_date):
+    data = get_scoreboard(slate_date)
     for event in data['events']:
         if event['id'] not in games:
             logging.warning('Skipping unknown game %s (%s)', event['id'], event.get('name'))
@@ -82,7 +87,8 @@ def update_games(games):
             'score':(int(away['score']), int(home['score'])),
             'quarter':event['status']['period'],
             'clock':event['status']['clock'],
-            'displayClock':event['status']['displayClock']
+            'displayClock':event['status']['displayClock'],
+            'state':event['status']['type']['state'], # 'post' covers final, postponed, and canceled
         })
     return games
 
@@ -100,7 +106,8 @@ def check_for_new_alerts(games, alerted):
 
 def get_daily_report(games):
     ratings = nba_watchability.get_team_ratings()
-    watchability_dict = nba_watchability.get_watchability(ratings)
+    matchups = [(game['away'], game['home']) for game in games.values()]
+    watchability_dict = nba_watchability.get_watchability(ratings, matchups)
     default_watchability = {'Watchability': 'Medium', 'Away Rating': 0, 'Home Rating': 0}
     for game in games.values():
         game.update(watchability_dict.get((game['away'], game['home']), default_watchability))
@@ -112,8 +119,8 @@ def get_daily_report(games):
     daily_report = '\n\n'.join(all_text)
     return daily_report
 
-def send_alerts(client, games, alerted):
-    games = update_games(games)
+def send_alerts(client, games, alerted, slate_date):
+    games = update_games(games, slate_date)
     new_alerts = check_for_new_alerts(games, alerted)
     for timeframe, game_ids in new_alerts.items():
         for game_id in game_ids:
@@ -133,16 +140,10 @@ def send_alerts(client, games, alerted):
 def get_time_windows(games):
     if not games:
         return None
-    today = dt.now().date()
-    first_game_time = ''.join(list(games.values())[0]['time'].split()[:2])
-    lower_window = dt.combine(today, dt.strptime(first_game_time, '%I:%M%p').time())
-    return lower_window
+    return min(game['start'] for game in games.values())
 
 def is_completed(games):
-    for game in games.values():
-        if game['quarter'] < 4 or game['clock'] > CLOCK_ZERO or game['score'][0] == game['score'][1]:
-            return False
-    return True
+    return all(game['state'] == 'post' for game in games.values())
 
 def get_score_report(games):
     all_text = []
@@ -154,7 +155,7 @@ def get_score_report(games):
         if away_score + home_score == 0: # game hasn't started
             text = '<%s|%s @ %s at %s>\n%s Watchability' % (game['url'], away_team, home_team, 
                 game['time'], game['Watchability'])
-        elif game['quarter'] >= 4 and game['clock'] <= CLOCK_ZERO and away_score != home_score: # game completed
+        elif game['state'] == 'post': # game completed
             text = '%s %s, %s %s' % (away_team, away_score, home_team, home_score)
         all_text.append(text)
     score_report = '\n\n'.join(all_text)

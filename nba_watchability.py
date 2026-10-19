@@ -1,9 +1,12 @@
 import logging
-import requests
 import nba_elo
 
 def get_team_ratings():
-    ratings = nba_elo.get_output()
+    try:
+        ratings = nba_elo.get_output()
+    except Exception as e:
+        logging.warning('Could not compute team ratings; using default watchability: %s', e)
+        return {}
     ratings['Blazers'] = ratings['Trail Blazers']
     return ratings
 
@@ -17,18 +20,9 @@ def has_favorite_teams(teams):
     # Finds intersection between favorite teams and teams in the matchup.
     return set(teams) & set(FAV_TEAMS)
 
-def get_watchability(ratings):
-    espn_api = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
-    try:
-        response = requests.get(espn_api, timeout=10)
-        data = response.json()
-    except Exception as e:
-        logging.warning('Could not fetch watchability data: %s', e)
-        return {}
-
+def get_watchability(ratings, matchups):
     watchability_dict = {}
-    for event in data['events']:
-        away_team, home_team = get_team_names(event)
+    for away_team, home_team in matchups:
         if away_team not in ratings or home_team not in ratings:
             logging.warning('No rating for %s @ %s; using default watchability', away_team, home_team)
             continue
