@@ -1,8 +1,11 @@
+import json
 import logging
+import os
 from datetime import datetime as dt
 import nba_watchability
 import requests
 
+ALERT_STATE_FILE = 'alert_state.json' # daily report and alerts already sent for the slate, so restarts don't repeat them
 SCOREBOARD_URL = 'http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'
 STREAM_BASE_URL = 'https://crackstreams.mx/stream'
 # National broadcasters (ESPN's names) -> streaming app; other games fall back to STREAM_BASE_URL
@@ -92,9 +95,42 @@ def update_games(games, slate_date):
         })
     return games
 
+def new_alerted():
+    return {'5 Min': set(), '1 Min': set(), 'OT': set()}
+
+def load_alerted(slate_date):
+    # None means nothing has been sent for this slate yet, not even the daily report
+    alerted = new_alerted()
+    try:
+        with open(ALERT_STATE_FILE) as f:
+            state = json.load(f)
+        if state['date'] != slate_date.isoformat():
+            return None # left over from an earlier slate
+        for timeframe in alerted:
+            alerted[timeframe].update(state['alerted'].get(timeframe, []))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
+        logging.warning('Could not read %s; starting fresh: %s', ALERT_STATE_FILE, e)
+        return None
+    logging.info('Restored %d sent alerts from %s', sum(len(ids) for ids in alerted.values()), ALERT_STATE_FILE)
+    return alerted
+
+def save_alerted(alerted, slate_date):
+    state = {'date': slate_date.isoformat(), 'alerted': {t: sorted(ids) for t, ids in alerted.items()}}
+    tmp_file = ALERT_STATE_FILE + '.tmp'
+    try:
+        with open(tmp_file, 'w') as f:
+            json.dump(state, f)
+        os.replace(tmp_file, ALERT_STATE_FILE) # atomic, so a crash mid-write can't corrupt the file
+    except OSError as e:
+        logging.warning('Could not save %s: %s', ALERT_STATE_FILE, e)
+
 def check_for_new_alerts(games, alerted):
-    new_alerts = {'5 Min': set(), '1 Min': set(), 'OT': set()}
+    new_alerts = new_alerted()
     for game_id, game in games.items():
+        if game['state'] != 'in': # skip games that haven't started or are already over
+            continue
         differential = abs(game['score'][0] - game['score'][1])
         if game_id not in alerted['5 Min'] and game['quarter'] == 4 and game['clock'] <= 300 and differential <= 5:
             new_alerts['5 Min'].add(game_id)
@@ -122,6 +158,7 @@ def get_daily_report(games):
 def send_alerts(client, games, alerted, slate_date):
     games = update_games(games, slate_date)
     new_alerts = check_for_new_alerts(games, alerted)
+    sent = False
     for timeframe, game_ids in new_alerts.items():
         for game_id in game_ids:
             game = games[game_id]
@@ -133,8 +170,11 @@ def send_alerts(client, games, alerted, slate_date):
                 client.chat_postMessage(channel='#crunchtime-alerts', text=text)
                 logging.info('Alert sent: %s vs %s (%s)', away_team, home_team, timeframe)
                 alerted[timeframe].add(game_id)
+                sent = True
             except Exception as e:
                 logging.warning('Failed to send alert for %s vs %s (%s): %s', away_team, home_team, timeframe, e)
+    if sent:
+        save_alerted(alerted, slate_date)
     return games, alerted
 
 def get_time_windows(games):
